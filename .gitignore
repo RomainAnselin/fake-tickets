@@ -2,4 +2,4 @@
 !conf_dummy.ini
 __pycache__
 *.txt
-*.workspace
+*.code-workspace
