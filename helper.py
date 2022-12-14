@@ -1,13 +1,29 @@
+##########################################
+#   
+#   Romain Anselin - DataStax - 2022
+#   File: helper.py
+#   Function: complementary functions to
+#       astra-insert that dont fit in the 
+#       main files
+#
+##########################################
+
 import configparser
 from datetime import datetime
 import time
+import sys
 import math
+from os.path import exists
 
 # Read astra config
-def read_config():
-    config = configparser.ConfigParser()
-    config.read('/home/romain/dev/fake-tickets/conf_bootcamp.ini')
-    return config
+def read_config(conf_file):
+    if exists(conf_file):
+        print("Using conf file: " + conf_file)
+        config = configparser.ConfigParser()
+        config.read(conf_file)
+        return config
+    else:
+        sys.exit("ERROR: File not found %s, \n Exiting now... ", conf_file)
 
 
 ### Unix Epoch ms
