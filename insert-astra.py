@@ -10,7 +10,7 @@ import faketickets as ft
 import deletebackups as dlb
 
 ### Change file here!
-conf_file = '/home/romain/dev/fake-tickets/conf_bootcamp.ini'
+conf_file = '/home/romain/dev/fake-tickets/conf_astra_ankit.ini'
 
 # Check arguments
 # (note 2 includes arg 0 which is this script!)
@@ -60,7 +60,8 @@ else:
         auth_provider = PlainTextAuthProvider(username=my_user, password=my_pwd)
         cluster = Cluster([host1], auth_provider=auth_provider)
     else:
-        cluster = Cluster([host1,host2])
+        # cluster = Cluster([host1,host2])
+        cluster = Cluster([host1])
 
 session = cluster.connect()
 

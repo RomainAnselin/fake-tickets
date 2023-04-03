@@ -8,6 +8,7 @@
 #
 ##########################################
 
+import multiprocessing
 import configparser
 from datetime import datetime
 import time
@@ -57,3 +58,24 @@ def isPower10 (num, base):
 def dtn():
     tsp = datetime.now()
     return tsp
+
+def cpurange(startval,numrec):
+    # How many CPU
+    cpucnt = multiprocessing.cpu_count() - 1
+    # how many size of ranges
+    valpercpu = math.floor(numrec/cpucnt)
+    rest = numrec - valpercpu*cpucnt
+    return cpucnt, valpercpu, rest
+
+
+# startval = 0
+# numrec = 11000
+# cpucnt, valpercpu, rest = cpurange(startval,numrec)
+# for cpunum in range(0,cpucnt):
+#     if cpunum == 0:
+#         step = startval+valpercpu+rest
+#     else:
+#         step = valpercpu
+#     print ("cpu" + str(cpunum) + " range: " + str(startval) + " end: " + str(step))
+#     startval += step
+    

@@ -27,6 +27,14 @@ def create_table_fake_tickets(session, ksname, tblname):
         );
         """)
 
+def create_mv_fake_tickets(session, ksname, tblname):
+    mvname='mvgemalto'
+    session.execute("CREATE MATERIALIZED VIEW IF NOT EXISTS " + ksname + "." + mvname + """(
+        AS select ownedby, time, id, notes, ticket 
+        FROM """ + ksname + "." + tblname + """
+        WHERE  ownedby is not null PRIMARY KEY (ownedby, id) ;
+        """)
+
 def insert_bind_fake_tickets(session, ksname, tblname):
     ticket_insert = "INSERT INTO " + ksname + "." + tblname + "(id, ownedby, ticket, time, notes) VALUES (?, ?, ?, ?, ?) USING TTL 86400 ;"
     ticketins_prep = session.prepare(ticket_insert)
@@ -124,8 +132,8 @@ def fake_tickets_workflow(session, ksname, startval, numrec):
 
             print( "Read execution finished: " + str( helper.dtn() - startselread ) )
 
-            # saiSimplestmt = SimpleStatement( "SELECT id,  ownedby, ticket, time, notes FROM " + ksname + "." + tblname + " WHERE time >= %s AND time <= %s;" % (min_time, timenow) ,
-            #    consistency_level=ConsistencyLevel.QUORUM)
+            saiSimplestmt = SimpleStatement( "SELECT id,  ownedby, ticket, time, notes FROM " + ksname + "." + tblname + " WHERE time >= %s AND time <= %s;" % (min_time, timenow) ,
+               consistency_level=ConsistencyLevel.QUORUM)
 
             # startsairead = helper.dtn()
 
