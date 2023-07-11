@@ -1,5 +1,6 @@
 *.ini
-!conf_dummy.ini
+conf/
+!conf/conf_dummy.ini
 __pycache__
 *.txt
 *.code-workspace

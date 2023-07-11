@@ -10,7 +10,7 @@ import faketickets as ft
 import deletebackups as dlb
 
 ### Change file here!
-conf_file = '/home/romain/dev/fake-tickets/conf_astra_ankit.ini'
+conf_file = 'conf/conf_astra_romain_test.ini'
 
 # Check arguments
 # (note 2 includes arg 0 which is this script!)

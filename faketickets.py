@@ -27,19 +27,35 @@ def create_table_fake_tickets(session, ksname, tblname):
         );
         """)
 
+### Sample inserts
+def insert_bind_fake_tickets(session, ksname, tblname):
+    ticket_insert = "INSERT INTO " + ksname + "." + tblname + "(id, ownedby, ticket, time, notes) VALUES (?, ?, ?, ?, ?) ;"
+    ticketins_prep = session.prepare(ticket_insert)
+    ticketins_prep.consistency_level = ConsistencyLevel.LOCAL_QUORUM
+    return ticketins_prep
+
+def insert_bind_fake_tickets_ttl(session, ksname, tblname):
+    ttl = 86400
+    ticket_insert = "INSERT INTO " + ksname + "." + tblname + "(id, ownedby, ticket, time, notes) VALUES (?, ?, ?, ?, ?) USING TTL " + ttl + " ;"
+    ticketins_prep = session.prepare(ticket_insert)
+    ticketins_prep.consistency_level = ConsistencyLevel.LOCAL_QUORUM
+    return ticketins_prep
+
+def insert_bind_fake_tickets_lwt(session, ksname, tblname):
+    ticket_insert = "INSERT INTO " + ksname + "." + tblname + "(id, ownedby, ticket, time, notes) VALUES (?, ?, ?, ?, ?) IF NOT EXISTS ;"
+    ticketins_prep = session.prepare(ticket_insert)
+    ticketins_prep.consistency_level = ConsistencyLevel.LOCAL_QUORUM
+    ticketins_prep.serial_consistency_level = ConsistencyLevel.LOCAL_SERIAL
+    return ticketins_prep
+
+### Materizalized view
 def create_mv_fake_tickets(session, ksname, tblname):
-    mvname='mvgemalto'
+    mvname='mv_fake_tickets'
     session.execute("CREATE MATERIALIZED VIEW IF NOT EXISTS " + ksname + "." + mvname + """(
         AS select ownedby, time, id, notes, ticket 
         FROM """ + ksname + "." + tblname + """
         WHERE  ownedby is not null PRIMARY KEY (ownedby, id) ;
         """)
-
-def insert_bind_fake_tickets(session, ksname, tblname):
-    ticket_insert = "INSERT INTO " + ksname + "." + tblname + "(id, ownedby, ticket, time, notes) VALUES (?, ?, ?, ?, ?) USING TTL 86400 ;"
-    ticketins_prep = session.prepare(ticket_insert)
-    ticketins_prep.consistency_level = ConsistencyLevel.LOCAL_QUORUM
-    return ticketins_prep
 
 ### SELECT and COUNT
 def select_bind_fake_tickets(session, ksname, tblname):
@@ -62,12 +78,13 @@ def select_count_bind_fake_tickets(session, ksname, tblname):
     return ticketselcnt_prep
 
 # Create SAI
-def create_sai_fake_tickets(session, ksname, tblname): 
+def create_sai_fake_tickets(session, ksname, tblname):
+    idx = "ownedby"
     # !!! TIL: Originally, index called dept_sai_idx hardcoded. It will not create the index as it exists for another table, but it will not error out either !!!
     try:
-        session.execute("CREATE CUSTOM INDEX IF NOT EXISTS " + tblname + "_sai_idx ON " + ksname + "." + tblname + "(time) USING 'StorageAttachedIndex'")
+        session.execute("CREATE CUSTOM INDEX IF NOT EXISTS " + tblname + "_sai_idx ON " + ksname + "." + tblname + "(" + idx + ") USING 'StorageAttachedIndex'")
     except:
-        print ("ERROR: Unable to create index:\n" "CREATE CUSTOM INDEX IF NOT EXISTS " + tblname + "_sai_idx ON " + ksname + "." + tblname + "(time) USING 'StorageAttachedIndex'")
+        print ("ERROR: Unable to create index:\n" "CREATE CUSTOM INDEX IF NOT EXISTS " + tblname + "_sai_idx ON " + ksname + "." + tblname + "(" + idx + ") USING 'StorageAttachedIndex'")
 
 def create_solr_fake_tickets(session, ksname, tblname):
     print("Creating Solr Index on %s.%s" % (ksname, tblname))
@@ -75,14 +92,14 @@ def create_solr_fake_tickets(session, ksname, tblname):
 
 def fake_tickets_workflow(session, ksname, startval, numrec):
     ### Values implementation
-    tblname="fake_tickets"
-    endval=startval+numrec
+    tblname = "fake_tickets"
+    endval = startval + numrec
     owner = [ "Romain", "Ryan", "Bettina", "Navaneetha", "Rachan", "Ivan", "Alberto", "Peter", "Pav", "Alkesh", "Uzoma", "Calum", "Cordell" ]
     power10 = [1,10,100,1000,10000,100000,1000000,10000000]
 
     # Create table if not exists
     create_table_fake_tickets(session, ksname, tblname)
-
+    create_sai_fake_tickets(session, ksname, tblname)
     # Insert Bind
     ticketins_prep = insert_bind_fake_tickets(session, ksname, tblname)
 
@@ -93,7 +110,7 @@ def fake_tickets_workflow(session, ksname, startval, numrec):
     # min_time = datetime.now()
     min_time = helper.current_milli_time()
 
-    for i in range (startval,endval):
+    for i in range (startval, endval):
         # timenow = datetime.now()
         timenow = helper.current_milli_time()
         pickowner = str(random.choice(owner))
@@ -132,8 +149,8 @@ def fake_tickets_workflow(session, ksname, startval, numrec):
 
             print( "Read execution finished: " + str( helper.dtn() - startselread ) )
 
-            saiSimplestmt = SimpleStatement( "SELECT id,  ownedby, ticket, time, notes FROM " + ksname + "." + tblname + " WHERE time >= %s AND time <= %s;" % (min_time, timenow) ,
-               consistency_level=ConsistencyLevel.QUORUM)
+            # saiSimplestmt = SimpleStatement( "SELECT id,  ownedby, ticket, time, notes FROM " + ksname + "." + tblname + " WHERE time >= %s AND time <= %s;" % (min_time, timenow) ,
+            #    consistency_level=ConsistencyLevel.QUORUM)
 
             # startsairead = helper.dtn()
 
