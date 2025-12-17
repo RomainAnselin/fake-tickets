@@ -13,6 +13,7 @@ from cassandra import ConsistencyLevel
 from cassandra.query import SimpleStatement
 from cassandra.query import PreparedStatement
 import helper
+#import randomVal
 
 ### Fake_tickets
 def create_table_fake_tickets(session, ksname, tblname):
@@ -34,8 +35,8 @@ def insert_bind_fake_tickets(session, ksname, tblname):
     ticketins_prep.consistency_level = ConsistencyLevel.LOCAL_QUORUM
     return ticketins_prep
 
-def insert_bind_fake_tickets_ttl(session, ksname, tblname):
-    ttl = 86400
+def insert_bind_fake_tickets_ttl(session, ksname, tblname, ttl):
+    #ttl = 86400
     ticket_insert = "INSERT INTO " + ksname + "." + tblname + "(id, ownedby, ticket, time, notes) VALUES (?, ?, ?, ?, ?) USING TTL " + ttl + " ;"
     ticketins_prep = session.prepare(ticket_insert)
     ticketins_prep.consistency_level = ConsistencyLevel.LOCAL_QUORUM
@@ -90,16 +91,17 @@ def create_solr_fake_tickets(session, ksname, tblname):
     print("Creating Solr Index on %s.%s" % (ksname, tblname))
     session.execute("CREATE SEARCH INDEX IF NOT EXISTS ON " + ksname + "." + tblname + " WITH COLUMNS ownedby, updatedat, time, notes")
 
-def fake_tickets_workflow(session, ksname, startval, numrec):
+def fake_tickets_workflow(session, ksname, startval, numrec, tblname):
     ### Values implementation
-    tblname = "fake_tickets"
+    #tblname = "fake_tickets_ttl"
     endval = startval + numrec
-    owner = [ "Romain", "Ryan", "Bettina", "Navaneetha", "Rachan", "Ivan", "Alberto", "Peter", "Pav", "Alkesh", "Uzoma", "Calum", "Cordell" ]
+    owner = [ "Romain", "Ryan", "Bettina", "Navaneetha", "Rachan", "Ivan", "Alberto", "Peter", "Pav", "Cordell", "Frez", "Adjete", "Paco", "Pranjal", "Yuva", "Anjali", "Suraj" ]
     power10 = [1,10,100,1000,10000,100000,1000000,10000000]
+    #ttl = randomVal()
 
     # Create table if not exists
     create_table_fake_tickets(session, ksname, tblname)
-    create_sai_fake_tickets(session, ksname, tblname)
+    #create_sai_fake_tickets(session, ksname, tblname)
     # Insert Bind
     ticketins_prep = insert_bind_fake_tickets(session, ksname, tblname)
 
@@ -109,20 +111,24 @@ def fake_tickets_workflow(session, ksname, startval, numrec):
 
     # min_time = datetime.now()
     min_time = helper.current_milli_time()
-
+    iteration = 0
+    
     for i in range (startval, endval):
         # timenow = datetime.now()
         timenow = helper.current_milli_time()
         pickowner = str(random.choice(owner))
         pickticket = random.randint(0,100000)
+        
         if i%2 == 0:
-            datastr = 'Python writing data with value ' + str(i) + ' for ' + pickowner + ' at ' + str(helper.fromts(timenow))
+            datastr = 'Python writing data with value ' + str(i) + ' for ' \
+                + pickowner + ' at ' + str(helper.fromts(timenow))
         else:
-            datastr = '%s Odd entries have a different data string for record %s for %s' % (str(helper.fromts(timenow)), str(i), pickowner)
+            datastr = '%s Odd entries have a different data string for record %s for %s' \
+                 % (str(helper.fromts(timenow)), str(i), pickowner)
 
         ### Bound statement
         tickins_bind = ticketins_prep.bind((i, pickowner, pickticket, timenow, datastr))
-        # print(str(tickins_bind))
+        print(str(tickins_bind))
         session.execute(tickins_bind)
 
         # Show time for every 10k records
@@ -136,10 +142,17 @@ def fake_tickets_workflow(session, ksname, startval, numrec):
             startselread = helper.dtn()
             ### READ SCENARIO
             ticksel_bind = ticketsel_prep.bind([i])
+            #if iteration == 0:
             selrows = session.execute(ticksel_bind)
+            # else:
+            #     selrows += session.execute(ticksel_bind)
+        
+            # iteration +=1
+
+        # if i == 3:
+        #     for row in selrows:
+        #         print(row.id, row.ownedby, row.ticket, row.time, row.notes)
             
-            for row in selrows:
-                print(row.id, row.ownedby, row.ticket, row.time, row.notes)
 
             ### COUNT SCENARIO
             tickselcnt_bind = ticketselcnt_prep.bind([i])
