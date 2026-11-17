@@ -23,45 +23,19 @@ import random
 import time
 from typing import Any, Optional
 
-from ..db.cluster import column_type, ensure_keyspace
+from ..db.cluster import column_type
 from ..engine.dispatcher import Op
 from ..engine.ids import BIGINT_MAX
 from .base import (
-    CONSISTENCY_CHOICES, Param, RunContext, Workload, consistency, monitor_params, rate_params, stop_params,
-    table_exists, target_params, wait_for_table,
+    Param, RunContext, Workload, monitor_params, rate_params, stop_params, table_exists, target_params,
 )
 from .datagen import OWNERS, padding, ticket_row
 from .monitor import CompactionMonitor
-from .tableopts import STRATEGY_CLASS, check_compaction, compaction_params, create_or_reconcile, current_options, table_options_cql
+from .tableopts import STRATEGY_CLASS, check_compaction, compaction_params, current_options, table_options_cql
+from .kit import consistency_param, count_hits as _rows_cb, create_table as _schema, prepare as _prepare
 from .tickets import setup_ids, tickets_ddl
 
-_CL = Param("consistency", "choice", "LOCAL_QUORUM", "Consistency", choices=CONSISTENCY_CHOICES, group="advanced")
-
-
-def _rows_cb(ctx: RunContext):
-    rec = ctx.recorder
-
-    def cb(rows: Any) -> None:
-        rows = list(rows or [])
-        rec.bump("hit" if rows else "miss")
-        if len(rows) > 1:
-            rec.bump("rows", len(rows))
-
-    return cb
-
-
-def _prepare(ctx: RunContext, cql: str):
-    stmt = ctx.session.prepare(cql)
-    stmt.consistency_level = consistency(ctx.params["consistency"])
-    return stmt
-
-
-def _schema(ctx: RunContext, ddl: str, *, default_ttl: Optional[int] = None) -> None:
-    if ctx.proc_index == 0:
-        ensure_keyspace(ctx.session, ctx.spec, ctx.keyspace, create=ctx.params["create_keyspace"])
-        create_or_reconcile(ctx, ddl, default_ttl=default_ttl)
-    else:
-        wait_for_table(ctx)
+_CL = consistency_param()
 
 
 # --------------------------------------------------------------------------- overwrite

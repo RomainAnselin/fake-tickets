@@ -26,6 +26,7 @@ faketickets/
     datagen.py         v1-compatible ticket rows, owner pool, padding
     connectivity.py    W1   tickets.py  W2 write / W3 read / W4 mixed
     twcs.py            W5 (bug repro)   datatypes.py W6       __init__.py  REGISTRY
+    kit.py             one import for workload authors (docs/04-ADDING-A-WORKLOAD.md)
     tableopts.py       compaction_params() / table_options_cql() / create_or_reconcile()
     compaction.py      overwrite, tombstones, timeseries, alter_table, table_stats
     monitor.py         CompactionMonitor — system_views + compaction_history, per node

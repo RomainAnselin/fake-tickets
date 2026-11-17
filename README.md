@@ -20,7 +20,8 @@ The original scripts (v1) are kept on branch `v1` / tag `v1.0`; their notes are 
 
 Design docs: [v1 spec](docs/01-EXISTING-SPECIFICATIONS.md) ·
 [requirements](docs/01b-V2-REQUIREMENTS.md) ·
-[HLD](docs/02-HLD.md) · [LLD](docs/03-LLD.md).
+[HLD](docs/02-HLD.md) · [LLD](docs/03-LLD.md) ·
+[adding a workload](docs/04-ADDING-A-WORKLOAD.md).
 
 ![Connection, grouped workloads, compaction options, rate and "how much" (number of records with an estimate), runs with progress](docs/img/ui-overview.png)
 
