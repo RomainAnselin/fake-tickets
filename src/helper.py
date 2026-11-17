@@ -34,13 +34,8 @@ def current_milli_time():
     return timenow
 
 def fromts(myts):
-    # TOFIX: This is BUGGY and need to be changed. When ms is 0xx, it trims the first 0 and gives an odd value
-    # ie: 2022-04-23 11:12:50.079000 becomes 2022-04-23 11:12:50:79
-    tsnow = time.strftime('%Y-%m-%d %H:%M:%S:{}'.format(myts%1000), time.gmtime(myts/1000.0))
-    #tsnow = datetime.fromtimestamp(myts/1000)
-    #print ( "myts: " + str(myts) + " tsnow: " + str(tsnow) )
-    #s = tsnow.isoformat(timespec='milliseconds')
-    #print(s)
+    # Formats millisecond epoch timestamp with 3-digit zero-padded milliseconds
+    tsnow = time.strftime('%Y-%m-%d %H:%M:%S.{:03d}'.format(myts % 1000), time.gmtime(myts / 1000.0))
     return tsnow
 
 ### If want to test a value as a power of 10

@@ -1,8 +1,10 @@
 *.ini
-conf/
+conf/*
 !conf/conf_dummy.ini
 __pycache__
 *.txt
 *.code-workspace
 *.vscode
 deprecated
+# issue-reproduction workspace, kept local
+test/

@@ -10,7 +10,7 @@ import cassqueries as cq
 import faketickets as ft
 #import deletebackups as dlb
 #import logate
-import astrasets
+#import astrasets
 
 ### Change file here!
 #conf_file = 'conf/conf_shared68.ini'
@@ -37,23 +37,16 @@ import astrasets
 def readrecords(incf):
     if os.path.exists(incf):
         with open(incf, 'r') as file:
-            # for line in file:
-                # Assuming the values are separated by a tab ('\t')
-            startval, numrec = [int(x) for x in next(file).split()] # read first line           
-            #print(f'Start: {startval}')
-            #print(f'Step : {numrec}')
-        return startval,numrec
-        file.close()
+            startval, numrec = [int(x) for x in next(file).split()]
+        return startval, numrec
     else:
-        print(f'Error: The specified input file "{incf}" does not exist.')
-        exit
+        sys.exit(f'Error: The specified input file "{incf}" does not exist.')
 
 def writerecords(incf, startval, numrec):
     if os.path.exists(incf):
         newval = startval + numrec
-        file = open(incf, 'w')
-        file.write("%i %i" % (newval, numrec))
-        file.close()
+        with open(incf, 'w') as file:
+            file.write("%i %i" % (newval, numrec))
     
 
 def arguments():
@@ -110,7 +103,7 @@ else:
         cluster = Cluster([host1], auth_provider=auth_provider)
     else:
         # cluster = Cluster([host1,host2])
-        cluster = Cluster([host1])
+        cluster = Cluster([host1], control_connection_timeout=30)
 
 session = cluster.connect()
 
@@ -123,7 +116,8 @@ if isAstra == "false":
 
 ### Starting routine
 #dlb.opscenter_delete(session)
-ft.fake_tickets_workflow(session, ksname, startval, numrec, tblname)
+#ft.fake_tickets_workflow(session, ksname, startval, numrec, tblname)
+ft.fake_tickets_twcs_workflow(session, ksname, startval, numrec, tblname)
 #astrasets.create_table_sets(session)
 #astrasets.random_set_insert(session)
 #astrasets.read_data(session)

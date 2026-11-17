@@ -118,6 +118,7 @@ def dualid_workflow(session, ksname, startval, numrec):
             print(stmt)
             rows = session.execute(stmt)
             after = datetime.now()
+            cnt = 0
             for row in rows:
-                cnt =+ 1 
+                cnt += 1
             print(str(after - before), cnt)
