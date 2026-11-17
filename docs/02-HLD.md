@@ -149,6 +149,10 @@ capabilities dropped; writable paths are the PVC mount and an `emptyDir` `/tmp`.
   supports headless mode, only the run manager would change.
 - **Postgres** store if the frontend needs >1 replica.
 - **OIDC** (smallstep / Authelia) as a 4th auth mode.
+- **Workloads without code** belong in a **separate project** built on NoSQLBench
+  (cqlgen: reproduce a workload from a schema + `nodetool tablestats`), reusing this
+  project's connection store, auth and run manager. See
+  [ideas/workload-studio-nosqlbench.md](ideas/workload-studio-nosqlbench.md).
 
 ## 9. Risks
 | Risk | Mitigation |

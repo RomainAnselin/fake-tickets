@@ -261,6 +261,9 @@ podman run -d --name ft-cass -p 19042:9042 --memory 1600m -e MAX_HEAP_SIZE=640M 
 FT_IT_CONTACT_POINTS=127.0.0.1:19042 pytest -m integration -k user_events
 ```
 
+> Defining workloads in the UI, without Python, is planned as a separate project on
+> NoSQLBench: [ideas/workload-studio-nosqlbench.md](ideas/workload-studio-nosqlbench.md).
+
 ## 6. Checklist
 
 - [ ] `name` is unique and stable (it's stored with every run).
