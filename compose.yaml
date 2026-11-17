@@ -1,7 +1,7 @@
-# Local stack: Cassandra 5 + backend + frontend.
+# Local stack: Cassandra 5 + backend + frontend. See README "Option 1".
 #   podman build -t localhost/fake-tickets:2.0.0 .
-#   FT_MASTER_KEY=$(openssl rand -base64 32) FT_BACKEND_TOKEN=$(openssl rand -hex 24) podman compose up
-# then open http://localhost:8443 and create a connection to host "cassandra", port 9042, RF 1.
+#   .env with FT_MASTER_KEY and FT_BACKEND_TOKEN (optional: FT_UI_PORT, FT_AUTH_MODE, FT_ADMIN_USER/PASSWORD)
+#   podman-compose up -d      -> http://localhost:8443, connection to host "cassandra", port 9042, RF 1
 name: fake-tickets
 
 services:
@@ -43,7 +43,7 @@ services:
       FT_ADMIN_USER: ${FT_ADMIN_USER:-}
       FT_ADMIN_PASSWORD: ${FT_ADMIN_PASSWORD:-}
     ports:
-      - "127.0.0.1:8443:8443"
+      - "127.0.0.1:${FT_UI_PORT:-8443}:8443"
     volumes:
       - frontend-data:/data
     depends_on:

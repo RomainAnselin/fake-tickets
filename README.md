@@ -64,21 +64,76 @@ connection, which replaces v1's increment file.
 
 ## Quick start
 
-### Local (venv)
 ```bash
-python3 -m venv .venv && .venv/bin/pip install -e '.[test]'
-FT_DATA_DIR=./.data FT_BACKEND_TOKEN=dev .venv/bin/faketickets backend &
-FT_DATA_DIR=./.data FT_BACKEND_TOKEN=dev FT_PORT=8443 .venv/bin/faketickets frontend
-# open http://localhost:8443
+git clone git@github.com:RomainAnselin/fake-tickets.git
+cd fake-tickets
 ```
+All commands below run from the repository root. The original v1 scripts are at
+`git checkout v1.0`.
 
-### Containers
+### Option 1: containers with compose (includes a Cassandra node)
+Needs podman with `podman-compose` (`pip install podman-compose`), or Docker Compose.
+
 ```bash
 podman build -t localhost/fake-tickets:2.0.0 .
-podman build --target test -t localhost/fake-tickets:test .      # runs the test-suite in the image
-FT_MASTER_KEY=$(openssl rand -base64 32) FT_BACKEND_TOKEN=$(openssl rand -hex 24) podman compose up
-# UI: http://localhost:8443 → New connection → host "cassandra", port 9042, RF 1
+
+# secrets for this stack; keep the file: FT_MASTER_KEY decrypts saved connections
+cat > .env <<EOF
+FT_MASTER_KEY=$(openssl rand -base64 32)
+FT_BACKEND_TOKEN=$(openssl rand -hex 24)
+EOF
+chmod 600 .env
+
+podman-compose up -d          # or: docker compose up -d
 ```
+Open <http://localhost:8443>. Cassandra takes about a minute to start. In the
+UI: **+ New** → contact points `cassandra`, port `9042`, replication factor `1`
+→ **Test**.
+
+* Another port: add `FT_UI_PORT=18443` to `.env`.
+* Login: add `FT_AUTH_MODE=local`, `FT_ADMIN_USER=…` and `FT_ADMIN_PASSWORD=…` to `.env`.
+* Stop: `podman-compose down`. Add `-v` to also delete the data (runs, saved
+  connections, Cassandra).
+* `podman compose` (with a space) also works, but where it hands off to
+  docker-compose it needs the podman socket (`systemctl --user enable --now podman.socket`).
+
+### Option 2: containers with plain podman
+```bash
+podman build -t localhost/fake-tickets:2.0.0 .
+podman network create ft
+podman run -d --name ft-cassandra --network ft --memory 1600m \
+  -e MAX_HEAP_SIZE=640M -e HEAP_NEWSIZE=128M docker.io/library/cassandra:5.0
+
+TOKEN=$(openssl rand -hex 24)
+podman run -d --name ft-backend --network ft -e FT_BACKEND_TOKEN=$TOKEN \
+  -v ft-backend:/data localhost/fake-tickets:2.0.0 backend
+podman run -d --name ft-frontend --network ft -p 127.0.0.1:8443:8443 \
+  -e FT_BACKEND_URL=http://ft-backend:8444 -e FT_BACKEND_TOKEN=$TOKEN \
+  -v ft-frontend:/data localhost/fake-tickets:2.0.0 frontend
+```
+Open <http://localhost:8443> and create a connection to `ft-cassandra`, port
+`9042`, replication factor `1`. Without `FT_MASTER_KEY`, the frontend generates
+one in its `/data` volume, so saved connections survive restarts as long as the
+volume does.
+
+Clean up:
+```bash
+podman rm -f ft-frontend ft-backend ft-cassandra
+podman volume rm ft-frontend ft-backend
+podman network rm ft
+```
+
+### Option 3: local Python (development)
+Needs Python 3.11 or later, and a Cassandra you can reach (for example the
+`ft-cassandra` container above with `-p 127.0.0.1:9042:9042` added).
+
+```bash
+python3 -m venv .venv && .venv/bin/pip install -e '.[test]'
+FT_DATA_DIR=./.data FT_BACKEND_TOKEN=dev .venv/bin/faketickets backend &    # port 8444
+FT_DATA_DIR=./.data FT_BACKEND_TOKEN=dev .venv/bin/faketickets frontend     # port 8443
+```
+Open <http://localhost:8443>. `.venv/` and `.data/` are git-ignored. Stop the
+frontend with Ctrl-C and the backend with `kill %1`.
 
 ### Kubernetes
 ```bash
@@ -94,8 +149,14 @@ that table offers to resume at the recorded id.
 ### Headless (no UI), e.g. as a k8s Job
 ```bash
 echo '{"kind":"cassandra","contact_points":["10.0.0.5"],"keyspace":"lab","replication_factor":3}' > conn.json
-faketickets run write -c conn.json -p rate=2000 -p duration_s=3600 -p compaction=twcs
+
+.venv/bin/faketickets run write -c conn.json -p rate=2000 -p duration_s=3600 -p compaction=twcs
+# or with the image:
+podman run --rm -v ./conn.json:/conn.json:ro,Z localhost/fake-tickets:2.0.0 \
+  run write -c /conn.json -p rate=2000 -p duration_s=3600 -p compaction=twcs
 ```
+It prints one JSON stats line per second and ends with `done: <reason>`.
+`faketickets workloads` lists the workloads and their parameters.
 
 ## HTTPS & certificates (smallstep)
 Set `FT_TLS_CERT_FILE`, `FT_TLS_KEY_FILE` and `FT_TLS_CA_FILE`. Where the CA and
@@ -130,9 +191,14 @@ See the [LLD §7](docs/03-LLD.md#7-configuration-reference). Everything is
 
 ## Tests
 ```bash
-pytest                                                     # 70 unit/API tests, no database needed
-podman run -d --name ft-cass -p 19042:9042 -e MAX_HEAP_SIZE=640M -e HEAP_NEWSIZE=128M cassandra:5.0
-FT_IT_CONTACT_POINTS=127.0.0.1:19042 pytest -m integration # 25 end-to-end tests
+.venv/bin/pytest                                   # 70 unit/API tests, no database needed
+podman build --target test -t localhost/fake-tickets:test .   # the same tests, inside the image
+
+# 25 end-to-end tests against a real Cassandra
+podman run -d --name ft-cass -p 127.0.0.1:19042:9042 --memory 1600m \
+  -e MAX_HEAP_SIZE=640M -e HEAP_NEWSIZE=128M docker.io/library/cassandra:5.0
+FT_IT_CONTACT_POINTS=127.0.0.1:19042 .venv/bin/pytest -m integration   # once Cassandra is up (~1 min)
+podman rm -f ft-cass
 ```
 
 ## Secret scanning (gitleaks)

@@ -22,3 +22,4 @@ build/
 *.db-wal
 *.db-shm
 master.key
+.env
