@@ -1,0 +1,22 @@
+# gitleaks configuration — https://github.com/gitleaks/gitleaks
+# Used by the pre-commit hook (.githooks/pre-commit) and CI (.github/workflows/gitleaks.yml).
+title = "fake-tickets"
+
+[extend]
+# Start from gitleaks' built-in rules (cloud keys, private keys, tokens, ...).
+useDefault = true
+
+# This app stores Cassandra / DSE / Astra credentials, so add the formats the
+# built-in rules do not cover.
+[[rules]]
+id = "astra-application-token"
+description = "DataStax Astra DB application token"
+regex = '''AstraCS:[A-Za-z0-9]{24}:[a-f0-9]{64}'''
+keywords = ["astracs"]
+
+[[rules]]
+id = "fake-tickets-master-key"
+description = "fake-tickets FT_MASTER_KEY / FT_BACKEND_TOKEN given a literal value"
+regex = '''(?i)\bFT_(?:MASTER_KEY|BACKEND_TOKEN|ADMIN_PASSWORD|LDAP_BIND_PASSWORD)\s*[:=]\s*["']?([A-Za-z0-9+/=_\-]{16,})["']?'''
+secretGroup = 1
+keywords = ["ft_master_key", "ft_backend_token", "ft_admin_password", "ft_ldap_bind_password"]
