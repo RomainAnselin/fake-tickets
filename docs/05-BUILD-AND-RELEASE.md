@@ -19,7 +19,7 @@ How the fake-tickets image is built, tested, published and deployed. The same Do
 | | |
 |---|---|
 | Name | `ghcr.io/romainanselin/fake-tickets` (public) |
-| Tags | `2.0.1` (release), `2.0` (latest patch of 2.0), `sha-<short commit>` |
+| Tags | `2.0.1` (release), `2.0` (latest patch of 2.0), `sha-<short commit>`, `latest` (newest release; never used by the deployment, which pins a version) |
 | Base | UBI 9: `ubi9/python-312` to build the virtualenv, `ubi9/ubi-minimal` + the `python3.12` RPM to run it. Both pinned by tag in the `Dockerfile` |
 | Roles | One image, two processes: `faketickets backend` (port 8444), `faketickets frontend` (port 8443) |
 | Runtime | uid 10001, gid 0, read-only root filesystem, data in `/data`, `dumb-init` as PID 1 |
@@ -74,7 +74,7 @@ Workflow: `.github/workflows/image.yml`.
 |---|---|---|---|
 | Pull request | yes | yes | no |
 | Push to `main` | yes | yes | no |
-| Tag `v*` (e.g. `v2.0.1`) | yes | yes | **yes**: `2.0.1`, `2.0`, `sha-<short>` |
+| Tag `v*` (e.g. `v2.0.1`) | yes | yes | **yes**: `2.0.1`, `2.0`, `sha-<short>`, `latest` |
 | Manual (Actions tab → *image* → Run workflow) | yes | yes | only if run on a tag |
 
 What it does, in order:
@@ -101,13 +101,16 @@ docker buildx imagetools inspect ghcr.io/romainanselin/fake-tickets:2.0.1 --form
 docker buildx imagetools inspect ghcr.io/romainanselin/fake-tickets:2.0.1 --format '{{json .Provenance}}' | jq '.SLSA.invocation.configSource'
 ```
 
-### First publish: make the package public (once)
+### Package visibility
 
-A new package gets GitHub's default visibility, **private**, even when the repository is public. After the first
-tag, check it and if needed:
-GitHub → your profile → **Packages** → `fake-tickets` → **Package settings** → *Change visibility* → **Public**.
-The image's `org.opencontainers.image.source` label links the package to this repository, so the repository page
-shows it and the workflow keeps write access.
+The first push (v2.0.0, 2026-11-17) created the package **public** and linked to this repository: it inherited the
+repository's visibility, through the image's `org.opencontainers.image.source` label. Anyone can pull it, no pull
+secret. If a package ever shows as private: GitHub → Packages → `fake-tickets` → Package settings → Change
+visibility. Check anonymously:
+
+```bash
+skopeo inspect --no-creds docker://ghcr.io/romainanselin/fake-tickets:2.0.0 | jq -r '.Labels["org.opencontainers.image.version"]'
+```
 
 ## 4. Release
 
