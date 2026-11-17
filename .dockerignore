@@ -1,0 +1,30 @@
+# Build context is the repo root; the image only needs pyproject.toml, README.md,
+# faketickets/ and tests/ (see Dockerfile COPY lines).
+**/__pycache__
+**/*.pyc
+**/.pytest_cache
+*.egg-info
+build
+dist
+.venv
+venv
+.git
+.github
+.githooks
+.gitleaks.toml
+deploy
+docs
+compose.yaml
+conf
+src
+test
+*.ini
+*.db
+*.key
+*.pem
+*.log
+*.txt
+GOAL.md
+TASK.md
+REPRO2.md
+TTL-ENHANCEMENT.md

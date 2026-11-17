@@ -1,10 +1,24 @@
+# --- local, never committed ---
+# real cluster configs (v1 INI files) and the v1 editor workspace
+conf/
 *.ini
-conf/*
-!conf/conf_dummy.ini
-__pycache__
-*.txt
 *.code-workspace
 *.vscode
 deprecated
-# issue-reproduction workspace, kept local
+# issue-reproduction workspace
 test/
+*.txt
+
+# --- Python / tooling ---
+__pycache__/
+*.egg-info/
+build/
+.pytest_cache/
+.venv/
+
+# --- app runtime data (FT_DATA_DIR) and secrets ---
+.data/
+*.db
+*.db-wal
+*.db-shm
+master.key

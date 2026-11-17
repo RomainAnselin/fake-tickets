@@ -1,0 +1,18 @@
+# Only the frontend (and in-namespace monitoring, if any) may reach the backend API.
+# Egress is left open: the backend must reach your Cassandra / DSE / Astra endpoints.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: backend-ingress
+spec:
+  podSelector:
+    matchLabels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - podSelector:
+            matchLabels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: frontend}
+        - namespaceSelector:
+            matchLabels: {kubernetes.io/metadata.name: monitoring}   # Prometheus scraping /metrics
+      ports:
+        - {port: 8444, protocol: TCP}

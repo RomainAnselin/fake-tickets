@@ -1,0 +1,29 @@
+# Short-lived leaf from the homelab smallstep CA via cert-manager + step-issuer.
+# The Secret is mounted (no subPath) so renewals propagate into the pods, where
+# fake-tickets hot-reloads it without a restart.
+#
+# Without cert-manager: run `step ca certificate` in an initContainer and
+# `step ca renew --daemon` as a sidecar writing to the same emptyDir at /tls.
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fake-tickets-tls
+spec:
+  secretName: fake-tickets-tls
+  duration: 24h
+  renewBefore: 8h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages: [server auth, client auth]
+  dnsNames:
+    - fake-tickets.home.lab               # UI hostname (Ingress)
+    - frontend
+    - frontend.fake-tickets.svc
+    - backend
+    - backend.fake-tickets.svc
+  issuerRef:
+    group: certmanager.step.sm
+    kind: StepClusterIssuer
+    name: step-issuer

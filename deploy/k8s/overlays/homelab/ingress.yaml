@@ -1,0 +1,24 @@
+# ingress-nginx re-encrypting to the frontend's own step-issued certificate.
+# (Traefik: use an IngressRoute with a ServersTransport trusting the step root instead.)
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fake-tickets
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: HTTPS
+    nginx.ingress.kubernetes.io/proxy-body-size: 25m      # Astra SCB uploads
+spec:
+  ingressClassName: nginx
+  tls:
+    - hosts: [fake-tickets.home.lab]
+      secretName: fake-tickets-tls
+  rules:
+    - host: fake-tickets.home.lab
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: {name: http}

@@ -1,0 +1,18 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+namespace: fake-tickets
+labels:
+  - pairs:
+      app.kubernetes.io/part-of: fake-tickets
+    includeSelectors: false
+resources:
+  - namespace.yaml
+  - config.yaml
+  - secret.yaml
+  - backend.yaml
+  - frontend.yaml
+  - networkpolicy.yaml
+images:
+  - name: fake-tickets
+    newName: ghcr.io/romainanselin/fake-tickets  # adjust to your registry
+    newTag: 2.0.0

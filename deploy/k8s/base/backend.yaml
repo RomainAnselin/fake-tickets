@@ -1,0 +1,79 @@
+# Backend: workload engine. MUST stay at 1 replica — runs live in this pod's process
+# tree (one OS process per run shard). Recreate strategy avoids two pods overlapping.
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: backend-data
+spec:
+  accessModes: [ReadWriteOnce]   # block storage; SQLite must not live on NFS
+  resources:
+    requests:
+      storage: 1Gi
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  labels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector:
+    matchLabels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+  template:
+    metadata:
+      labels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8444"
+        prometheus.io/path: /metrics
+    spec:
+      automountServiceAccountToken: false
+      terminationGracePeriodSeconds: 45   # stop runs + drain in-flight writes
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 10001
+        runAsGroup: 0
+        fsGroup: 10001
+        seccompProfile: {type: RuntimeDefault}
+      containers:
+        - name: backend
+          image: fake-tickets
+          args: ["backend"]
+          ports: [{name: http, containerPort: 8444}]
+          envFrom:
+            - configMapRef: {name: fake-tickets-config}
+          env:
+            - name: FT_BACKEND_TOKEN
+              valueFrom: {secretKeyRef: {name: fake-tickets-secrets, key: FT_BACKEND_TOKEN}}
+          readinessProbe:
+            httpGet: {path: /readyz, port: http}
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: {path: /healthz, port: http}
+            periodSeconds: 20
+            failureThreshold: 3
+          resources:
+            requests: {cpu: 250m, memory: 256Mi}
+            limits: {memory: 2Gi}            # ~60-100 MiB per worker process
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: true
+            capabilities: {drop: [ALL]}
+          volumeMounts:
+            - {name: data, mountPath: /data}
+            - {name: tmp, mountPath: /tmp}
+      volumes:
+        - name: data
+          persistentVolumeClaim: {claimName: backend-data}
+        - name: tmp
+          emptyDir: {medium: Memory, sizeLimit: 128Mi}   # per-run SCB / client key files
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  labels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+spec:
+  selector: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+  ports: [{name: http, port: 8444, targetPort: http}]

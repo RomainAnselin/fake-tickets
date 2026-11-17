@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: fake-tickets-config
+data:
+  FT_LOG_LEVEL: INFO
+  # backend
+  FT_MAX_RUNS: "8"
+  FT_MAX_PROCESSES_PER_RUN: "8"
+  FT_MAX_RATE: "0"            # 0 = no ceiling; set e.g. 20000 to protect a small lab cluster
+  # frontend
+  FT_BACKEND_URL: http://backend:8444
+  FT_AUTH_MODE: none          # none | local | ldap   (see overlays/homelab for LDAP)
+  FT_SESSION_TTL_HOURS: "12"
+  FT_MAX_UPLOAD_MB: "20"

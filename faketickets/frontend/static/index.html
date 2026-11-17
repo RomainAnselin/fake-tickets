@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>fake-tickets</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect x='3' y='6' width='26' height='20' rx='4' fill='%233b82f6'/%3E%3Cpath d='M9 12h14M9 16h10M9 20h12' stroke='white' stroke-width='2' stroke-linecap='round'/%3E%3C/svg%3E">
+  <link rel="stylesheet" href="/static/style.css">
+  <script src="/static/app.js" defer></script>
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <svg viewBox="0 0 32 32" aria-hidden="true"><rect x="3" y="6" width="26" height="20" rx="4"/><path d="M9 12h14M9 16h10M9 20h12"/></svg>
+      <span>fake-tickets</span><small id="version"></small>
+    </div>
+    <div class="top-right">
+      <span id="backend-status" class="dot" title="backend"></span>
+      <span id="whoami"></span>
+      <button id="logout" class="ghost hidden" type="button">Log out</button>
+    </div>
+  </header>
+
+  <!-- Login -->
+  <main id="login-view" class="center hidden">
+    <form id="login-form" class="card login">
+      <h1>Sign in</h1>
+      <p class="muted" id="login-hint">Use your homelab directory account.</p>
+      <label>Username <input name="username" autocomplete="username" required></label>
+      <label>Password <input name="password" type="password" autocomplete="current-password" required></label>
+      <p class="error" id="login-error"></p>
+      <button type="submit" class="primary">Sign in</button>
+    </form>
+  </main>
+
+  <!-- App -->
+  <main id="app-view" class="layout hidden">
+    <section class="card" id="connections-card">
+      <div class="card-head">
+        <h2>1 · Connection</h2>
+        <button id="new-conn" type="button" class="small">+ New</button>
+      </div>
+      <div id="conn-list" class="conn-list" role="radiogroup" aria-label="Connections"></div>
+      <div class="row gap">
+        <button id="test-conn" type="button" class="small" disabled>Test</button>
+        <button id="edit-conn" type="button" class="small ghost" disabled>Edit</button>
+        <button id="del-conn" type="button" class="small ghost danger" disabled>Delete</button>
+      </div>
+    </section>
+
+    <section class="card" id="workload-card">
+      <div class="card-head"><h2>2 · Workload</h2></div>
+      <div id="wl-list" class="wl-grid" role="radiogroup" aria-label="Workloads"></div>
+      <form id="wl-form" autocomplete="off">
+        <div id="wl-params" class="params"></div>
+        <fieldset id="cmp-box" class="hidden">
+          <legend>Table &amp; compaction</legend>
+          <div class="params" id="wl-cmp"></div>
+        </fieldset>
+        <fieldset id="rate-box" class="rate-box hidden">
+          <legend>Rate</legend>
+          <div class="rate-control" id="rate-control"></div>
+          <div class="params" id="rate-extra"></div>
+        </fieldset>
+        <fieldset id="amount-box" class="hidden">
+          <legend>How much</legend>
+          <div id="wl-stop"></div>
+        </fieldset>
+        <details id="wl-adv-wrap"><summary>Advanced</summary><div id="wl-adv" class="params"></div></details>
+        <div class="row gap end">
+          <input id="run-label" placeholder="Label (optional)" maxlength="200">
+          <button type="submit" class="primary" id="start-run" disabled>Start run</button>
+        </div>
+        <p class="error" id="start-error"></p>
+      </form>
+    </section>
+
+    <section class="card wide" id="runs-card">
+      <div class="card-head">
+        <h2>3 · Runs</h2>
+        <label class="inline"><input type="checkbox" id="only-active"> active only</label>
+      </div>
+      <div class="table-wrap">
+        <table id="runs-table">
+          <thead><tr><th>Run</th><th>Workload</th><th>Target</th><th>State</th><th class="num">Rate</th><th class="num">Target</th><th>Progress</th><th class="num">OK</th><th class="num">Err</th><th class="num">p99 ms</th><th>Owner</th><th>Started</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="muted empty" id="runs-empty">No runs yet — pick a connection and a workload above.</p>
+    </section>
+
+    <section class="card wide hidden" id="run-detail"></section>
+  </main>
+
+  <!-- Connection editor -->
+  <dialog id="conn-dialog">
+    <form id="conn-form" method="dialog" autocomplete="off">
+      <h2 id="conn-title">New connection</h2>
+      <label>Name <input name="name" required maxlength="100"></label>
+      <div class="seg" role="radiogroup" aria-label="Kind">
+        <label><input type="radio" name="kind" value="cassandra" checked> Cassandra</label>
+        <label><input type="radio" name="kind" value="dse"> DSE</label>
+        <label><input type="radio" name="kind" value="astra"> Astra DB</label>
+      </div>
+      <div class="kind-hosts">
+        <div class="grid2">
+          <label>Contact points <input name="contact_points" placeholder="10.0.0.1, 10.0.0.2"></label>
+          <label>Port <input name="port" type="number" value="9042" min="1" max="65535"></label>
+          <label>Local DC <input name="local_dc" placeholder="auto-detect"></label>
+          <label>Replication factor <input name="replication_factor" type="number" value="3" min="1" max="12"></label>
+          <label>Username <input name="username" autocomplete="off"></label>
+          <label>Password <input name="password" type="password" autocomplete="new-password"></label>
+        </div>
+        <label class="inline"><input type="checkbox" name="tls_enabled"> TLS (client → cluster)</label>
+        <div class="tls hidden">
+          <label>CA certificate (PEM) <textarea name="tls_ca_pem" rows="3" placeholder="-----BEGIN CERTIFICATE----- (e.g. the smallstep root)"></textarea></label>
+          <label class="inline"><input type="checkbox" name="tls_verify_hostname" checked> verify hostname</label>
+          <details><summary>Client certificate (mTLS)</summary>
+            <label>Certificate (PEM) <textarea name="tls_cert_pem" rows="3"></textarea></label>
+            <label>Private key (PEM) <textarea name="tls_key_pem" rows="3" placeholder="stored encrypted"></textarea></label>
+          </details>
+        </div>
+      </div>
+      <div class="kind-astra hidden">
+        <label>Secure Connect Bundle (.zip) <input name="scb" type="file" accept=".zip,application/zip"></label>
+        <p class="muted small" id="scb-current"></p>
+        <label>Application token <input name="astra_token" type="password" placeholder="AstraCS:…" autocomplete="off"></label>
+        <p class="muted small">…or legacy client credentials:</p>
+        <div class="grid2">
+          <label>Client ID <input name="astra_client_id" autocomplete="off"></label>
+          <label>Client secret <input name="astra_client_secret" type="password" autocomplete="off"></label>
+        </div>
+      </div>
+      <div class="grid2">
+        <label>Default keyspace <input name="keyspace" value="fake_tickets" required></label>
+        <label>Protocol version <input name="protocol_version" type="number" min="3" max="6" placeholder="auto"></label>
+      </div>
+      <p class="muted small">Secrets are encrypted at rest (AES-GCM, per-record salted key). Leave secret fields empty when editing to keep the stored value.</p>
+      <p class="error" id="conn-error"></p>
+      <div class="row gap end">
+        <button type="button" class="ghost" id="conn-cancel">Cancel</button>
+        <button type="submit" class="primary" id="conn-save">Save</button>
+      </div>
+    </form>
+  </dialog>
+  <div id="toast" role="status" aria-live="polite"></div>
+</body>
+</html>

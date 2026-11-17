@@ -1,0 +1,40 @@
+# Homelab overlay: HTTPS everywhere with certificates from the smallstep CA
+# (cert-manager + step-issuer), LDAP login, and an Ingress.
+#
+#   kubectl apply -k deploy/k8s/overlays/homelab
+#
+# Adjust: hostnames (certificate.yaml, ingress.yaml), issuer name/kind, LDAP settings below.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - certificate.yaml
+  - ingress.yaml
+patches:
+  - path: tls-patch.yaml
+  - target: {kind: Deployment}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/httpGet/scheme
+        value: HTTPS
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/httpGet/scheme
+        value: HTTPS
+configMapGenerator:
+  - name: fake-tickets-config
+    behavior: merge
+    literals:
+      - FT_BACKEND_URL=https://backend.fake-tickets.svc:8444
+      - FT_TLS_CERT_FILE=/tls/tls.crt
+      - FT_TLS_KEY_FILE=/tls/tls.key
+      - FT_TLS_CA_FILE=/tls/ca.crt
+      - FT_TLS_RELOAD_INTERVAL=60
+      - FT_AUTH_MODE=ldap
+      - FT_LDAP_URL=ldaps://ldap.home.lab:636
+      - FT_LDAP_USER_DN_TEMPLATE=uid={username},ou=people,dc=home,dc=lab
+      # or search-then-bind instead of the template:
+      # - FT_LDAP_BASE_DN=ou=people,dc=home,dc=lab
+      # - FT_LDAP_USER_FILTER=(uid={username})
+      # - FT_LDAP_BIND_DN=cn=readonly,dc=home,dc=lab   (password in the Secret)
+      - FT_LDAP_REQUIRED_GROUP=cn=simulators,ou=groups,dc=home,dc=lab
+      - FT_LDAP_CA_FILE=/tls/ca.crt
