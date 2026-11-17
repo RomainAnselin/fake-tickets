@@ -70,3 +70,5 @@ configMapGenerator:
   - name: holonet-root-ca
     files:
       - ca.crt=holonet-root-ca.crt
+    options:
+      disableNameSuffixHash: true   # fixed name: kustomize didn't rewrite the reference in tls-patch.yaml
