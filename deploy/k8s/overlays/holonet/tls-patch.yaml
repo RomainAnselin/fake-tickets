@@ -1,3 +1,5 @@
+# Leaf certificate (namespace CA) in both pods at /tls, no subPath so renewals reach the pods.
+# The frontend also gets the holonet root at /holonet for LDAPS.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -24,6 +26,9 @@ spec:
         - name: frontend
           volumeMounts:
             - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: holonet-root, mountPath: /holonet, readOnly: true}
       volumes:
         - name: tls
           secret: {secretName: fake-tickets-tls, defaultMode: 0440}
+        - name: holonet-root
+          configMap: {name: holonet-root-ca}

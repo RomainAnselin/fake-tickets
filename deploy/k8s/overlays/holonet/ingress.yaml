@@ -1,0 +1,25 @@
+# Traefik (the lab's IngressClass). The browser certificate comes from step-ca over ACME
+# (ClusterIssuer holonet-acme); Traefik then re-encrypts to the frontend (ServersTransport in
+# certificate.yaml). Hostname under the *.apps.k1.holonet.lan wildcard: no DNS change needed.
+# Uploads (Astra SCB, up to FT_MAX_UPLOAD_MB) need no annotation: Traefik has no default body limit.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fake-tickets
+  annotations:
+    cert-manager.io/cluster-issuer: holonet-acme
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [fake-tickets.apps.k1.holonet.lan]
+      secretName: fake-tickets-ingress-tls
+  rules:
+    - host: fake-tickets.apps.k1.holonet.lan
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: {name: http}

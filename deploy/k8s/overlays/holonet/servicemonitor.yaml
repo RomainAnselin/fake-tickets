@@ -1,0 +1,19 @@
+# Backend metrics (/metrics, no token) into the lab's Prometheus (kube-prometheus-stack on k1,
+# which selects every ServiceMonitor). The base NetworkPolicy already admits the monitoring
+# namespace on 8444.
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: fake-tickets-backend
+spec:
+  selector:
+    matchLabels: {app.kubernetes.io/name: fake-tickets, app.kubernetes.io/component: backend}
+  endpoints:
+    - port: http
+      path: /metrics
+      scheme: https
+      interval: 30s
+      tlsConfig:
+        serverName: backend.fake-tickets.svc
+        ca:
+          secret: {name: fake-tickets-ca, key: ca.crt}

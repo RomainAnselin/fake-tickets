@@ -1,0 +1,72 @@
+# holonet overlay: the homelab deployment, synced by ArgoCD on k1.
+#
+#   Browser ─HTTPS (holonet-acme cert)─► Traefik ─HTTPS (namespace CA)─► frontend ─HTTPS + token─► backend
+#
+# - UI at https://fake-tickets.apps.k1.holonet.lan (the *.apps.k1 wildcard already resolves).
+# - Browser certificate: cert-manager ClusterIssuer holonet-acme (step-ca ACME), on the Ingress.
+# - Frontend <-> backend and Traefik -> frontend: a CA local to the namespace (cert-manager,
+#   bootstrapped by ClusterIssuer bootstrap-selfsigned). ACME can't issue for *.svc names.
+# - Secrets: OpenBao kv/lab/fake-tickets through ESO (ClusterSecretStore openbao). The base's
+#   placeholder Secret is removed, so ArgoCD never overwrites the ESO-made one.
+# - Login: OpenLDAP (ldaps://ldap.holonet.lan), group fake-tickets-user.
+# - Image: public ghcr.io package, no pull secret.
+#
+# Lab facts (hostnames, issuers, DNs, the holonet root) live only in this overlay; the base
+# stays generic. Render: kubectl kustomize deploy/k8s/overlays/holonet
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - certificate.yaml
+  - ingress.yaml
+  - externalsecret.yaml
+  - servicemonitor.yaml
+images:
+  - name: fake-tickets
+    newName: ghcr.io/romainanselin/fake-tickets
+    newTag: 2.0.0            # release: bump here, commit, ArgoCD rolls it out (docs/05-BUILD-AND-RELEASE.md)
+patches:
+  # The base ships a placeholder Secret; here ESO owns fake-tickets-secrets.
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: fake-tickets-secrets
+  - path: tls-patch.yaml
+  - target: {kind: Deployment}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/httpGet/scheme
+        value: HTTPS
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/httpGet/scheme
+        value: HTTPS
+  # Traefik re-encrypts to the frontend and verifies it against the namespace CA.
+  - target: {kind: Service, name: frontend}
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          traefik.ingress.kubernetes.io/service.serversscheme: https
+          traefik.ingress.kubernetes.io/service.serverstransport: fake-tickets-frontend@kubernetescrd
+configMapGenerator:
+  - name: fake-tickets-config
+    behavior: merge
+    literals:
+      - FT_BACKEND_URL=https://backend.fake-tickets.svc:8444
+      - FT_TLS_CERT_FILE=/tls/tls.crt
+      - FT_TLS_KEY_FILE=/tls/tls.key
+      - FT_TLS_CA_FILE=/tls/ca.crt
+      - FT_TLS_RELOAD_INTERVAL=60
+      - FT_AUTH_MODE=ldap
+      - FT_LDAP_URL=ldaps://ldap.holonet.lan:636
+      - FT_LDAP_USER_DN_TEMPLATE=uid={username},ou=people,dc=holonet,dc=lan
+      - FT_LDAP_REQUIRED_GROUP=cn=fake-tickets-user,ou=fake-tickets,ou=access,ou=groups,dc=holonet,dc=lan
+      - FT_LDAP_CA_FILE=/holonet/ca.crt
+      - FT_ADMIN_USER=admin
+      - FT_MAX_RATE=20000
+  # The holonet root CA (public certificate, no key): trusted for LDAPS.
+  - name: holonet-root-ca
+    files:
+      - ca.crt=holonet-root-ca.crt

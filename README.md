@@ -21,7 +21,8 @@ The original scripts (v1) are kept on branch `v1` / tag `v1.0`; their notes are 
 Design docs: [v1 spec](docs/01-EXISTING-SPECIFICATIONS.md) ·
 [requirements](docs/01b-V2-REQUIREMENTS.md) ·
 [HLD](docs/02-HLD.md) · [LLD](docs/03-LLD.md) ·
-[adding a workload](docs/04-ADDING-A-WORKLOAD.md).
+[adding a workload](docs/04-ADDING-A-WORKLOAD.md) ·
+[build and release](docs/05-BUILD-AND-RELEASE.md).
 
 ![Connection, grouped workloads, compaction options, rate and "how much" (number of records with an estimate), runs with progress](docs/img/ui-overview.png)
 
@@ -137,10 +138,12 @@ frontend with Ctrl-C and the backend with `kill %1`.
 
 ### Kubernetes
 ```bash
-# 1. push the image somewhere your cluster can pull from, then set it in deploy/k8s/base/kustomization.yaml
-# 2. fill deploy/k8s/base/secret.yaml (FT_MASTER_KEY, FT_BACKEND_TOKEN) — or use SealedSecrets
+# Image: ghcr.io/romainanselin/fake-tickets, published by CI on a v* tag (docs/05-BUILD-AND-RELEASE.md)
+# Any cluster: fill deploy/k8s/base/secret.yaml (FT_MASTER_KEY, FT_BACKEND_TOKEN), then
 kubectl apply -k deploy/k8s/base                 # plain HTTP inside the cluster, no login
-kubectl apply -k deploy/k8s/overlays/homelab     # step-issuer certs, HTTPS everywhere, LDAP login, Ingress
+# The homelab (holonet): synced by ArgoCD from deploy/k8s/overlays/holonet, not applied by hand.
+# HTTPS everywhere, LDAP login, secrets from OpenBao (ESO), Traefik Ingress.
+kubectl kustomize deploy/k8s/overlays/holonet    # render only
 ```
 The backend is a single replica on purpose: runs live in its process tree. When
 it restarts, runs that were active show as `interrupted`, and the next run on
@@ -161,8 +164,10 @@ It prints one JSON stats line per second and ends with `done: <reason>`.
 ## HTTPS & certificates (smallstep)
 Set `FT_TLS_CERT_FILE`, `FT_TLS_KEY_FILE` and `FT_TLS_CA_FILE`. Where the CA and
 leaf come from is up to the deployment:
-* **cert-manager + step-issuer** (overlay `homelab`): a `Certificate` → Secret
-  mounted at `/tls`.
+* **cert-manager** (overlay `holonet`): a CA local to the namespace issues the
+  internal leaf (`Certificate` → Secret mounted at `/tls`); the browser-facing
+  certificate comes from step-ca over ACME on the Ingress.
+* **cert-manager + step-issuer**: the same `Certificate`, issued by step-ca directly.
 * **step CLI**: `step ca certificate` in an initContainer plus
   `step ca renew --daemon` writing to the same volume.
 

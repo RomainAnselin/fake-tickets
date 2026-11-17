@@ -5,9 +5,12 @@
 #
 # Base images follow the homelab convention (UBI 9). Build stage compiles the venv
 # with the full python-312 image; runtime is ubi-minimal + the python3.12 RPM.
+# Pinned tags, so the same commit rebuilds the same image. To update: pick the newest
+# <version>-<release> tag (skopeo list-tags docker://registry.access.redhat.com/ubi9/ubi-minimal)
+# and change it here (docs/05-BUILD-AND-RELEASE.md §5).
 
-ARG BUILD_IMAGE=registry.access.redhat.com/ubi9/python-312:latest
-ARG RUNTIME_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:latest
+ARG BUILD_IMAGE=registry.access.redhat.com/ubi9/python-312:9.9-1793872299
+ARG RUNTIME_IMAGE=registry.access.redhat.com/ubi9/ubi-minimal:9.9-1794467051
 
 # --------------------------------------------------------------------------- build
 FROM ${BUILD_IMAGE} AS build
@@ -42,6 +45,7 @@ ARG VERSION=2.0.0
 LABEL org.opencontainers.image.title="fake-tickets" \
       org.opencontainers.image.description="Kubernetes-friendly Cassandra / DSE / Astra data simulator" \
       org.opencontainers.image.version="${VERSION}" \
+      org.opencontainers.image.source="https://github.com/RomainAnselin/fake-tickets" \
       org.opencontainers.image.licenses="Proprietary"
 RUN microdnf install -y --nodocs --setopt=install_weak_deps=0 python3.12 shadow-utils \
  && microdnf clean all \
