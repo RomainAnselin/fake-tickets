@@ -144,6 +144,9 @@ kubectl apply -k deploy/k8s/base                 # plain HTTP inside the cluster
 # The homelab (holonet): synced by ArgoCD from deploy/k8s/overlays/holonet, not applied by hand.
 # HTTPS everywhere, LDAP login, secrets from OpenBao (ESO), Traefik Ingress.
 kubectl kustomize deploy/k8s/overlays/holonet    # render only
+# Any lab with the same stack (worklab sites): deploy/k8s/overlays/lab, site values (hostname, issuer,
+# LDAP, lab root CA) patched in by the ArgoCD Application, which pins a release tag (v2.0.1, ...).
+kubectl kustomize deploy/k8s/overlays/lab        # render only
 ```
 The backend is a single replica on purpose: runs live in its process tree. When
 it restarts, runs that were active show as `interrupted`, and the next run on

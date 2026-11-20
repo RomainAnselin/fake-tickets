@@ -117,6 +117,7 @@ skopeo inspect --no-creds docker://ghcr.io/romainanselin/fake-tickets:2.0.0 | jq
 ```bash
 # 1. Bump the version
 #    pyproject.toml: version = "2.0.1"      (the Dockerfile's VERSION default is only for hand builds)
+#    deploy/k8s/overlays/lab/kustomization.yaml: images[0].newTag: 2.0.1
 git commit -am "Release 2.0.1" && git push
 
 # 2. Tag: this publishes the image
@@ -127,6 +128,9 @@ git tag v2.0.1 && git push origin v2.0.1
 #    deploy/k8s/overlays/holonet/kustomization.yaml: images[0].newTag: 2.0.1
 git commit -am "Deploy 2.0.1 to the lab" && git push
 #    ArgoCD (k1) sees the commit within its poll interval (or press Refresh on fake-tickets) and rolls out
+#
+#    The generic overlay deploy/k8s/overlays/lab is bumped in the release commit (step 1), so the tag carries
+#    it: worklab sites pin the tag in their ArgoCD Application (targetRevision) and move by changing it.
 ```
 
 Deployment is a Git change, never `kubectl set image`: ArgoCD's self-heal would revert a hand change. To roll back,
@@ -153,5 +157,7 @@ pods: the base ConfigMap is a plain resource, so its name has no content hash. R
 ## 6. Where it runs
 
 The lab deployment (overlay `deploy/k8s/overlays/holonet`, ArgoCD Application on k1) is described in the homelab
-repository: `docs/fake-tickets.md`. The base (`deploy/k8s/base`) is generic and can be used on any cluster with its
+repository: `docs/fake-tickets.md`. Other labs with the same stack use the generic overlay `deploy/k8s/overlays/lab`:
+every site value is a placeholder that the ArgoCD Application patches (worklab's `apps/fake-tickets` renders it),
+and the Application pins a release tag rather than `main`. The base (`deploy/k8s/base`) is generic and can be used on any cluster with its
 own overlay.

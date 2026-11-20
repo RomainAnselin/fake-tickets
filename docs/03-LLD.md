@@ -42,7 +42,7 @@ faketickets/
     backend_client.py  httpx client (bearer, CA-verified TLS, optional client cert)
     static/            index.html, style.css, app.js (no build step, CSP-safe)
 tests/                 unit + API tests (no DB) and integration tests (live Cassandra)
-deploy/k8s/            kustomize base + overlays/holonet (lab: ArgoCD, ESO, LDAP, Traefik)
+deploy/k8s/            kustomize base + overlays/holonet (the homelab) and overlays/lab (generic: ArgoCD, ESO, LDAP, Traefik)
 Dockerfile, compose.yaml
 ```
 

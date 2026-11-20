@@ -1,0 +1,25 @@
+# Traefik. The browser certificate comes from the cluster's ACME issuer (cert-manager annotation);
+# Traefik then re-encrypts to the frontend (ServersTransport in certificate.yaml).
+# Issuer and hostname are site values, patched in by the ArgoCD Application.
+# Uploads (Astra SCB, up to FT_MAX_UPLOAD_MB) need no annotation: Traefik has no default body limit.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: fake-tickets
+  annotations:
+    cert-manager.io/cluster-issuer: lab-acme                  # site value
+spec:
+  ingressClassName: traefik
+  tls:
+    - hosts: [fake-tickets.apps.example.lab]                  # site value
+      secretName: fake-tickets-ingress-tls
+  rules:
+    - host: fake-tickets.apps.example.lab                     # site value
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: frontend
+                port: {name: http}

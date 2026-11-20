@@ -1,0 +1,34 @@
+# Leaf certificate (namespace CA) in both pods at /tls, no subPath so renewals reach the pods.
+# The frontend also gets the lab root at /lab-root for LDAPS.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+spec:
+  template:
+    spec:
+      containers:
+        - name: backend
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: fake-tickets-tls, defaultMode: 0440}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+spec:
+  template:
+    spec:
+      containers:
+        - name: frontend
+          volumeMounts:
+            - {name: tls, mountPath: /tls, readOnly: true}
+            - {name: lab-root, mountPath: /lab-root, readOnly: true}
+      volumes:
+        - name: tls
+          secret: {secretName: fake-tickets-tls, defaultMode: 0440}
+        - name: lab-root
+          configMap: {name: lab-root-ca}

@@ -1,0 +1,67 @@
+# In-namespace CA for the internal hops (Traefik -> frontend, frontend -> backend, Prometheus
+# -> backend). ACME (the Ingress issuer) can't issue for *.svc names, so cert-manager makes a small CA
+# here: self-signed root (ClusterIssuer bootstrap-selfsigned) -> Issuer -> short-lived leaf.
+#
+# The leaf Secret is mounted without subPath, so renewals reach the pods, where fake-tickets
+# reloads them without a restart (FT_TLS_RELOAD_INTERVAL).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fake-tickets-ca
+spec:
+  isCA: true
+  commonName: fake-tickets namespace CA
+  secretName: fake-tickets-ca
+  duration: 87600h          # 10 years: a new CA key would break trust until every leaf renews
+  renewBefore: 720h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Never
+  issuerRef:
+    group: cert-manager.io
+    kind: ClusterIssuer
+    name: bootstrap-selfsigned
+---
+apiVersion: cert-manager.io/v1
+kind: Issuer
+metadata:
+  name: fake-tickets-ca
+spec:
+  ca:
+    secretName: fake-tickets-ca
+---
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: fake-tickets-tls
+spec:
+  secretName: fake-tickets-tls
+  duration: 24h
+  renewBefore: 8h
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+  usages: [server auth, client auth]
+  dnsNames:
+    - frontend
+    - frontend.fake-tickets.svc
+    - frontend.fake-tickets.svc.cluster.local
+    - backend
+    - backend.fake-tickets.svc
+    - backend.fake-tickets.svc.cluster.local
+  issuerRef:
+    group: cert-manager.io
+    kind: Issuer
+    name: fake-tickets-ca
+---
+# Traefik verifies the frontend against the namespace CA (Service annotation in kustomization.yaml).
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: frontend
+spec:
+  serverName: frontend.fake-tickets.svc
+  rootCAs:
+    - secret: fake-tickets-ca
