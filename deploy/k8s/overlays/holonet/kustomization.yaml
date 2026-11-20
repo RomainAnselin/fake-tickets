@@ -22,8 +22,7 @@ resources:
   - externalsecret.yaml
   - servicemonitor.yaml
 images:
-  - name: fake-tickets
-    newName: ghcr.io/romainanselin/fake-tickets
+  - name: ghcr.io/romainanselin/fake-tickets   # the name the base already sets
     newTag: 2.0.0            # release: bump here, commit, ArgoCD rolls it out (docs/05-BUILD-AND-RELEASE.md)
 patches:
   # The base ships a placeholder Secret; here ESO owns fake-tickets-secrets.

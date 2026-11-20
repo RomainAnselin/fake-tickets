@@ -1,0 +1,77 @@
+# lab overlay: a generic lab deployment (Traefik, cert-manager, External Secrets, LDAP), meant to be
+# delivered by ArgoCD with the site's values patched in by the Application. Nothing here names a real lab.
+#
+#   Browser ─HTTPS (ACME cert)─► Traefik ─HTTPS (namespace CA)─► frontend ─HTTPS + token─► backend
+#
+# Site values: placeholders, replaced by kustomize patches in the ArgoCD Application
+# (worklab's apps/fake-tickets renders them):
+#   Ingress fake-tickets        cert-manager.io/cluster-issuer, spec.tls[0].hosts[0], spec.rules[0].host
+#   ConfigMap fake-tickets-config  FT_LDAP_URL, FT_LDAP_USER_DN_TEMPLATE, FT_LDAP_REQUIRED_GROUP
+#   ConfigMap lab-root-ca       data.ca.crt: the lab root CA (PEM), trusted for LDAPS
+#
+# Fixed expectations on the cluster:
+# - cert-manager with ClusterIssuer bootstrap-selfsigned (for the namespace CA) and an ACME issuer.
+# - Traefik as IngressClass `traefik`.
+# - External Secrets with ClusterSecretStore `openbao`, holding kv `lab/fake-tickets`
+#   (master-key, backend-token, admin-password).
+# - kube-prometheus-stack (ServiceMonitor CRD).
+#
+# Render: kubectl kustomize deploy/k8s/overlays/lab
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - ../../base
+  - certificate.yaml
+  - ingress.yaml
+  - externalsecret.yaml
+  - servicemonitor.yaml
+images:
+  - name: ghcr.io/romainanselin/fake-tickets   # the name the base already sets
+    newTag: 2.0.1            # release: bump here and tag the repository (docs/05-BUILD-AND-RELEASE.md)
+patches:
+  # The base ships a placeholder Secret; here ESO owns fake-tickets-secrets.
+  - patch: |-
+      $patch: delete
+      apiVersion: v1
+      kind: Secret
+      metadata:
+        name: fake-tickets-secrets
+  - path: tls-patch.yaml
+  - target: {kind: Deployment}
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/readinessProbe/httpGet/scheme
+        value: HTTPS
+      - op: replace
+        path: /spec/template/spec/containers/0/livenessProbe/httpGet/scheme
+        value: HTTPS
+  # Traefik re-encrypts to the frontend and verifies it against the namespace CA.
+  - target: {kind: Service, name: frontend}
+    patch: |-
+      - op: add
+        path: /metadata/annotations
+        value:
+          traefik.ingress.kubernetes.io/service.serversscheme: https
+          traefik.ingress.kubernetes.io/service.serverstransport: fake-tickets-frontend@kubernetescrd
+configMapGenerator:
+  - name: fake-tickets-config
+    behavior: merge
+    literals:
+      - FT_BACKEND_URL=https://backend.fake-tickets.svc:8444
+      - FT_TLS_CERT_FILE=/tls/tls.crt
+      - FT_TLS_KEY_FILE=/tls/tls.key
+      - FT_TLS_CA_FILE=/tls/ca.crt
+      - FT_TLS_RELOAD_INTERVAL=60
+      - FT_AUTH_MODE=ldap
+      - FT_LDAP_URL=ldaps://ldap.example.lab:636                                   # site value
+      - FT_LDAP_USER_DN_TEMPLATE=uid={username},ou=people,dc=example,dc=lab        # site value
+      - FT_LDAP_REQUIRED_GROUP=cn=fake-tickets-user,ou=fake-tickets,ou=access,ou=groups,dc=example,dc=lab   # site value
+      - FT_LDAP_CA_FILE=/lab-root/ca.crt
+      - FT_ADMIN_USER=admin
+      - FT_MAX_RATE=20000
+  # The lab root CA (public certificate): a placeholder, replaced by the site's root.
+  - name: lab-root-ca
+    literals:
+      - "ca.crt=site value (the lab root CA in PEM)"
+    options:
+      disableNameSuffixHash: true   # fixed name: the Application's patch and tls-patch.yaml refer to it
